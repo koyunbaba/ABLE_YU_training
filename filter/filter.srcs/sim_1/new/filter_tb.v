@@ -38,7 +38,7 @@ module filter_tb;
     wire	dout_valid;
 
 
-    filter filter_uut
+    filter1 filter_uut
 	(
         .clk(clk),
         .resetn(resetn),
@@ -112,18 +112,18 @@ module filter_tb;
         end
         else begin
         
-            if(counter1 < counter2) begin
+            if($random%2 == 1 ) begin
                 din_valid <= 1'b1;
                 
-                din00 <= din00 + 1;
-                din01 <= din01 + 1;
-                din02 <= din02 + 1;
-                din10 <= din10 + 1;
-                din11 <= din11 + 1;
-                din12 <= din12 + 1;
-                din20 <= din20 + 1;
-                din21 <= din21 + 1;
-                din22 <= din22 + 1;
+                din00 <= {$random%128};
+                din01 <= {$random%128};
+                din02 <= {$random%128};
+                din10 <= {$random%128};
+                din11 <= {$random%128};
+                din12 <= {$random%128};
+                din20 <= {$random%128};
+                din21 <= {$random%128};
+                din22 <= {$random%128};
             end
             else begin
             
