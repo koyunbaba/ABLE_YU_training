@@ -99,26 +99,19 @@ module filter_tb;
     
     
     always@(*) begin
-    
-    	// TODO: improve this poor timing design
-    	
-    	/*
-    	 * This is a Gaussian filter
-    	 *
-    	 *	1  2  1
-    	 *  2  4  2
-    	 *  1  2  1
-    	 *
-    	*/ 
+        
+        // golden answer preparing
 	    temp <= {8'b0, din00} 			+ {7'b0, din01, 1'b0} + {8'b0, din02} 		+  			 
     			{7'b0, din10, 1'b0} 	+ {6'b0, din11, 2'b0} + {7'b0, din12, 1'b0} +
     			{8'b0, din20} 			+ {7'b0, din21, 1'b0} + {8'b0, din22} 		;
     end
     
+    // answer fifo
     always@(posedge clk) begin
     
         if(resetn == 1'b0) begin
         
+            // fifo clean and pointer reset
             wr_ptr <= 0;
             rd_ptr <= 0;
             
@@ -128,20 +121,23 @@ module filter_tb;
             end
         end
         else begin
-        
+                
             if( din_valid == 1'b1 ) begin
             
+                // answer push-in
                 fifo[wr_ptr] <= temp[4 +: 8];
                 wr_ptr       <= wr_ptr + 1;
             end
             
             if( dout_valid == 1'b1 ) begin
             
+                // answer pop-out
                 rd_ptr <= rd_ptr + 1;
             end
         end
     end
     
+    // wrong answer detect and alarm
     always@(posedge clk) begin
     
         if( dout_valid == 1'b1 &&
@@ -151,6 +147,7 @@ module filter_tb;
         end
     end
     
+    // counter for din_valid switching
     always@(posedge clk) begin
     
         if(resetn == 1'b0) begin
@@ -172,6 +169,14 @@ module filter_tb;
         end
     end
     
+    // test data generate
+    // 
+    // test all combination of din (100% coverage)
+    //
+    // FIXME: very long simulation time and cause memory fill up... 
+    //
+    // TODO: generate more effective data set
+    //
     always@(posedge clk) begin
     
         if(resetn == 1'b0) begin
