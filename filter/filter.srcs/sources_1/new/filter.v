@@ -28,9 +28,10 @@ module filter
 		input 	[53:0] 	kernel,		
 		input	din_valid,
 		output	[15:0]	dout,				
-		output	dout_valid
+		output	dout_valid,
+		output  clk_out
     );
-	parameter latency = 7;
+	parameter latency = 8;
     wire [8:0] din_array [8:0];
     wire [5:0] kernel_array [8:0];
     genvar i;
@@ -43,17 +44,18 @@ module filter
 	
 	
 	reg  layer_valid [latency-1:0];		
-	wire [14:0] layer_1_2 [4:0];
-	reg  [8:0]  layer_1_2_buf [3:0];
-	reg  [5:0]  layer_1_2_kernel [3:0];	
-	wire [15:0] layer_2_3 [3:0];	
-	reg  [15:0] layer_2_3_5 [2:0];//latency of layer2 is 3
+	wire [14:0] layer_1_2 [4:0];// din_array 0 2 4 6 8 mul result
+	reg  [8:0]  layer_1_2_buf [3:0];// din_array 1 3 5 7  buffer
+	reg  [5:0]  layer_1_2_kernel [3:0];	// kernel buffer
+	wire [15:0] layer_2_3 [3:0];// a*b+c result	
+	reg  [15:0] layer_2_3_5 [2:0];//the last din_array buffer, latency of layer2 dsp48e1 is 3
 	reg  [15:0] layer_3_4 [2:0];
 	reg  [15:0] layer_4_5 [1:0];
-	reg  [15:0] layer_5_end;
+	reg  [15:0] layer_5_6;
+	reg  [15:0] layer_6_end;
 	
-	
-	assign dout = layer_5_end;
+	assign clk_out = clk > 0 ? 1'b1 : 1'b0;
+	assign dout = layer_6_end;
 	assign dout_valid = layer_valid[latency-1]; 
   
 	generate 	
@@ -99,12 +101,13 @@ module filter
 			end		
 			layer_4_5[0] <= 16'b0;
 			layer_4_5[1] <= 16'b0;
-			layer_5_end <= 16'b0;
+			layer_5_6 <= 16'b0;
+			layer_6_end <= 16'b0;
 			
 			
     	end
     	else begin
-			//layer 1
+			//layer 1 buffer for 1 3 5 7 
 			for(j = 0; j < 4; j = j + 1) begin
 				layer_1_2_buf[j] <= din_array[j*2+1];
 				layer_1_2_kernel[j] <= kernel_array[j*2+1];
@@ -125,7 +128,10 @@ module filter
 			layer_4_5[1] <= layer_3_4[2];
 			
 			//layer 5
-			layer_5_end <= layer_4_5[0] + layer_4_5[1];
+			layer_5_6 <= layer_4_5[0] + layer_4_5[1];
+			
+			//layer 6
+			layer_6_end <= layer_5_6;
 			
 	   	    layer_valid[0] <= din_valid;
 		    for(j = 1; j < latency; j = j + 1)begin
