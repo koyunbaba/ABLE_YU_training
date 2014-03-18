@@ -3,7 +3,7 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 2014/03/12 13:10:34
+// Create Date: 2014/03/17 18:09:18
 // Design Name: 
 // Module Name: filter_tb
 // Project Name: 
@@ -22,8 +22,7 @@
 
 module filter_tb;
 
-    reg		clk;
-	wire 	clk_d;
+    reg		clk;	
     reg		resetn;
     wire	[71:0]	din;		
 	reg signed	[53:0] 	kernel;	
@@ -39,8 +38,7 @@ module filter_tb;
         .kernel(kernel), //[53:0], 9 * 6, -32~31			
         .din_valid(din_valid),
         .dout(dout), //[15:0], signed 16bit
-        .dout_valid(dout_valid),
-		.clk_out(clk_d)
+        .dout_valid(dout_valid)		
     );
 
     reg [7:0] counter1;
@@ -63,9 +61,9 @@ module filter_tb;
     initial begin
         
         resetn = 1'b0;
-        kernel = {6'd0, 6'd1, 6'd0, 
-				  6'd1, -6'd4, 6'd1, 
-				  6'd0, 6'd1, 6'd0};	
+        kernel = {-6'd1, 6'd0, 6'd1, 
+				  -6'd2, 6'd0, 6'd2, 
+				  -6'd1, 6'd0, 6'd1};	
 		
         #100
         
@@ -93,7 +91,7 @@ module filter_tb;
     end
     
     // answer fifo
-    always@(posedge clk_d) begin
+    always@(posedge clk) begin
     
         if(resetn == 1'b0) begin
         
@@ -122,7 +120,7 @@ module filter_tb;
     end
     
     // wrong answer detect and alarm
-    always@(posedge clk_d) begin
+    always@(posedge clk) begin
     
         if( dout_valid == 1'b1 &&
             dout       != ans     ) begin
@@ -177,7 +175,7 @@ module filter_tb;
                 
                 if(long_adder < 72'hFF_FF_FF_FF_FF_FF_FF_FF_FF) begin
                 
-                    long_adder <= long_adder +72'h00_03_02_01_01_02_03_02_01;
+                    long_adder <= long_adder + 72'h09_08_07_06_05_04_03_02_01;
                 end				
             end
             else begin                                
@@ -187,7 +185,7 @@ module filter_tb;
         end        
     end
 
-    always@(posedge clk_d) begin
+    always@(posedge clk) begin
     
         if( din[71-:8]  == 8'hFF  &&
             wr_ptr == rd_ptr &&
