@@ -25,23 +25,24 @@ module filter_wrapper(
 		resetn,
 		din,		
 		kernel,		
-		din_valid,
+		din_valid, 
 		dout,				
 		dout_valid
     );
-	parameter KERNEL_SIZE = 5;
+	parameter KERNEL_WIDTH = 7;
+	parameter KERNEL_HEIGHT = 5;
 	input	clk;
 	input	resetn;
 	input	[7:0]	din;
-	input 	[5:0] kernel;
+	input 	[5:0] kernel; 
 	input	din_valid;
 	output	[31:0]	dout;
 	output	dout_valid;	
 	//-----------------------------------------------------------------------------
 	
-	reg [KERNEL_SIZE*KERNEL_SIZE*8-1:0]	din_sipo;
-	reg [KERNEL_SIZE*KERNEL_SIZE*6-1:0]	kernel_sipo;
-	reg [KERNEL_SIZE*KERNEL_SIZE-1:0] sipo_valid;
+	reg [KERNEL_WIDTH*KERNEL_HEIGHT*8-1:0]	din_sipo;
+	reg [KERNEL_WIDTH*KERNEL_HEIGHT*6-1:0]	kernel_sipo;
+	reg [KERNEL_WIDTH*KERNEL_HEIGHT-1:0] sipo_valid;
 	
 	integer i;
 	integer j;
@@ -57,8 +58,8 @@ module filter_wrapper(
 			din_sipo[0+:8] <= din;
 			kernel_sipo[0+:8] <= kernel;			
 			
-			din_sipo[8+:KERNEL_SIZE*KERNEL_SIZE*8-8] <= din_sipo[0+:KERNEL_SIZE*KERNEL_SIZE*8-8];
-			kernel_sipo[6+:KERNEL_SIZE*KERNEL_SIZE*6-6] <= kernel_sipo[0+:KERNEL_SIZE*KERNEL_SIZE*6-6];				
+			din_sipo[8+:KERNEL_WIDTH*KERNEL_HEIGHT*8-8] <= din_sipo[0+:KERNEL_WIDTH*KERNEL_HEIGHT*8-8];
+			kernel_sipo[6+:KERNEL_WIDTH*KERNEL_HEIGHT*6-6] <= kernel_sipo[0+:KERNEL_WIDTH*KERNEL_HEIGHT*6-6];				
 			
 			sipo_valid <= {sipo_valid, din_valid};
 		end		
@@ -66,7 +67,7 @@ module filter_wrapper(
 	
 	
 	
-	filter #(.KERNEL_SIZE(KERNEL_SIZE))	filter_uut
+	filter #(.KERNEL_WIDTH(KERNEL_WIDTH), .KERNEL_HEIGHT(KERNEL_HEIGHT))	filter_uut
 	(
 		.clk(clk),
 		.resetn(resetn),
