@@ -21,8 +21,10 @@
 
 
 module filter_tb;
-	parameter KERNEL_SIZE = 5;
+	parameter KERNEL_SIZE = 7;
 	//-------------------------------------------------------
+`define PISOz
+
 	parameter DATA_IN_SIZE = KERNEL_SIZE*KERNEL_SIZE*8;
 	parameter KERNEL_DATA_SIZE = KERNEL_SIZE*KERNEL_SIZE*6;
     reg		clk;	
@@ -32,14 +34,18 @@ module filter_tb;
     reg		din_valid;
     wire signed	[31:0]	dout;				
     wire	dout_valid;
-	
+
+`ifdef PISO	
 	reg [7:0] din_piso [KERNEL_SIZE*KERNEL_SIZE-1+1:0];
 	reg [6:0] kernel_piso [KERNEL_SIZE*KERNEL_SIZE-1+1:0];
 	reg [KERNEL_SIZE*KERNEL_SIZE-1+1:0] piso_valid;
 	wire [7:0] din_piso_result;
 	wire [7:0] kernel_piso_result;
 	wire piso_valid_result;
+`endif	
 	
+	
+`ifdef PISO	
 	filter_wrapper #(.KERNEL_SIZE(KERNEL_SIZE))	filter_wrapper_uut
 	(
 		.clk(clk),
@@ -50,7 +56,18 @@ module filter_tb;
 		.dout(dout),				
 		.dout_valid(dout_valid)
     );
-	
+`else
+	filter #(.KERNEL_SIZE(KERNEL_SIZE)) filter_uut 
+	(
+        .clk(clk),
+        .resetn(resetn),
+        .din(din), //[71:0], 9 * 8, 0~255
+        .kernel(kernel), //[53:0], 9 * 6, -32~31			
+        .din_valid(din_valid),
+        .dout(dout), //[15:0], signed 16bit
+        .dout_valid(dout_valid)		
+    );
+`endif	
 	
 	
     reg [7:0] counter1;
@@ -73,8 +90,10 @@ module filter_tb;
     initial begin
         
         resetn = 1'b0;
+`ifdef PISO			
 		piso_valid = 0;
-		kernel = {5{-6'd31, -6'd31, -6'd19, -6'd31,  -6'd31}};
+`endif		
+		kernel = {7{-6'd32, -6'd31, -6'd19, 6'd31, -6'd19, -6'd31,  -6'd32}};
 				  
         #100
         
@@ -155,10 +174,14 @@ module filter_tb;
                 counter1 <= 0;
                 counter2 <= counter2 + 1;
             end
+`ifdef PISO
             else if( |piso_valid == 0) begin            
-			
+`else
+			else begin
+`endif			
                 counter1 <= counter1 + 1;
             end
+
         end
     end
     
@@ -179,22 +202,26 @@ module filter_tb;
             long_adder <= 0;
         end
         else begin
+`ifdef PISO		
 			if(|piso_valid == 1'b0) begin
-			
+`endif			
 				if(counter1 < counter2) begin				
 					din_valid <= 1'b1;					
-					long_adder <= long_adder + {5{40'h05_04_03_02_01}};					
+					long_adder <= long_adder + {7{56'h01_02_03_05_04_03_02_01}};					
 				end
 				else begin                                					
 					din_valid <= 1'b0;
 				end
+`ifdef PISO				
 			end
 			else begin
 				din_valid <= 1'b0;
 			end
+`endif						
         end        
     end
 	
+`ifdef PISO	
 	// test data parallel in serial out
 	assign din_piso_result = din_piso[KERNEL_SIZE*KERNEL_SIZE];
 	assign kernel_piso_result = kernel_piso[KERNEL_SIZE*KERNEL_SIZE];
@@ -232,15 +259,6 @@ module filter_tb;
             end
         end        
     end
-
-    /*always@(posedge clk) begin
-    
-        if( din[71-:8]  == 8'hFF  &&
-            wr_ptr == rd_ptr &&
-            dout_valid == 1'b1  ) begin
-			$display("Complete @ %t", $time);
-            $stop;
-        end
-    end*/
+`endif    
     
 endmodule
