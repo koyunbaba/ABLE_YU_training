@@ -3,7 +3,7 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 2014/03/17 18:09:18
+// Create Date: 2014/03/19 14:00:00
 // Design Name: 
 // Module Name: filter_tb
 // Project Name: 
@@ -19,14 +19,14 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-
 module filter_tb;
-	parameter KERNEL_SIZE = 7;
+	parameter KERNEL_WIDTH = 7;
+	parameter KERNEL_HEIGHT = 5;
 	//-------------------------------------------------------
-`define PISOz
+`define PISOs
 
-	parameter DATA_IN_SIZE = KERNEL_SIZE*KERNEL_SIZE*8;
-	parameter KERNEL_DATA_SIZE = KERNEL_SIZE*KERNEL_SIZE*6;
+	parameter DATA_IN_SIZE = KERNEL_WIDTH*KERNEL_HEIGHT*8;
+	parameter KERNEL_DATA_SIZE = KERNEL_WIDTH*KERNEL_HEIGHT*6;
     reg		clk;	
     reg		resetn;
     wire	[DATA_IN_SIZE-1:0]	din;		
@@ -35,10 +35,10 @@ module filter_tb;
     wire signed	[31:0]	dout;				
     wire	dout_valid;
 
-`ifdef PISO	
-	reg [7:0] din_piso [KERNEL_SIZE*KERNEL_SIZE-1+1:0];
-	reg [6:0] kernel_piso [KERNEL_SIZE*KERNEL_SIZE-1+1:0];
-	reg [KERNEL_SIZE*KERNEL_SIZE-1+1:0] piso_valid;
+`ifdef PISO	 
+	reg [7:0] din_piso [KERNEL_WIDTH*KERNEL_HEIGHT-1+1:0];
+	reg [6:0] kernel_piso [KERNEL_WIDTH*KERNEL_HEIGHT-1+1:0];
+	reg [KERNEL_WIDTH*KERNEL_HEIGHT-1+1:0] piso_valid;
 	wire [7:0] din_piso_result;
 	wire [7:0] kernel_piso_result;
 	wire piso_valid_result;
@@ -46,7 +46,7 @@ module filter_tb;
 	
 	
 `ifdef PISO	
-	filter_wrapper #(.KERNEL_SIZE(KERNEL_SIZE))	filter_wrapper_uut
+	filter_wrapper #(.KERNEL_WIDTH(KERNEL_WIDTH), .KERNEL_HEIGHT(KERNEL_HEIGHT))	filter_wrapper_uut
 	(
 		.clk(clk),
 		.resetn(resetn),
@@ -57,7 +57,7 @@ module filter_tb;
 		.dout_valid(dout_valid)
     );
 `else
-	filter #(.KERNEL_SIZE(KERNEL_SIZE)) filter_uut 
+	filter #(.KERNEL_WIDTH(KERNEL_WIDTH), .KERNEL_HEIGHT(KERNEL_HEIGHT)) filter_uut 
 	(
         .clk(clk),
         .resetn(resetn),
@@ -93,7 +93,7 @@ module filter_tb;
 `ifdef PISO			
 		piso_valid = 0;
 `endif		
-		kernel = {7{-6'd32, -6'd31, -6'd19, 6'd31, -6'd19, -6'd31,  -6'd32}};
+		kernel = {5{6'd1, -6'd16, 6'd1, 6'd31, -6'd1, 6'd16, -6'd1}};
 				  
         #100
         
@@ -113,9 +113,9 @@ module filter_tb;
         
         // golden answer preparing
 		sum = 0;		
-		for(i = 0; i < KERNEL_SIZE*KERNEL_SIZE; i = i + 1) begin
+		for(i = 0; i < KERNEL_WIDTH*KERNEL_HEIGHT; i = i + 1) begin
 			sum_temp = { 7'b0, {din[i*8 +: 8]} } * { {9{kernel[i*6+5]}}, kernel[i*6+:6]}; // signed mul  din * kernel
-			sum = sum + {{17{sum_temp[14]}}, sum_temp};
+			sum = sum + {{17{sum_temp[14]}}, sum_temp};			
 		end				
 		temp = sum;
     end
@@ -207,7 +207,7 @@ module filter_tb;
 `endif			
 				if(counter1 < counter2) begin				
 					din_valid <= 1'b1;					
-					long_adder <= long_adder + {7{56'h01_02_03_05_04_03_02_01}};					
+					long_adder <= long_adder + {5{56'h01_02_03_04_05_06_07}};					
 				end
 				else begin                                					
 					din_valid <= 1'b0;
@@ -223,14 +223,14 @@ module filter_tb;
 	
 `ifdef PISO	
 	// test data parallel in serial out
-	assign din_piso_result = din_piso[KERNEL_SIZE*KERNEL_SIZE];
-	assign kernel_piso_result = kernel_piso[KERNEL_SIZE*KERNEL_SIZE];
-	assign piso_valid_result = piso_valid[KERNEL_SIZE*KERNEL_SIZE];
+	assign din_piso_result = din_piso[KERNEL_WIDTH*KERNEL_HEIGHT];
+	assign kernel_piso_result = kernel_piso[KERNEL_WIDTH*KERNEL_HEIGHT];
+	assign piso_valid_result = piso_valid[KERNEL_WIDTH*KERNEL_HEIGHT];
 	always@(posedge clk) begin
     
         if(resetn == 1'b0) begin
 			piso_valid <= 0;
-			for(i = 0; i < KERNEL_SIZE+1; i = i + 1) begin
+			for(i = 0; i < KERNEL_WIDTH*KERNEL_HEIGHT+1; i = i + 1) begin
 				din_piso[i] <= 0;
 				kernel_piso[i] <= 0;
 			end			
@@ -238,11 +238,11 @@ module filter_tb;
         else begin
         
             if(din_valid == 1'b1) begin //initial the parallel in values		
-				for(i = 0; i < KERNEL_SIZE; i = i + 1) begin
-					for(j = 0; j < KERNEL_SIZE; j = j + 1) begin
-						din_piso[i*KERNEL_SIZE+j] <= din[(i*KERNEL_SIZE+j)*8 +: 8];
-						kernel_piso[i*KERNEL_SIZE+j] <= kernel[(i*KERNEL_SIZE+j)*6 +: 6];
-						piso_valid[i*KERNEL_SIZE+j] <= 1'b1;
+				for(i = 0; i < KERNEL_HEIGHT; i = i + 1) begin
+					for(j = 0; j < KERNEL_WIDTH; j = j + 1) begin
+						din_piso[i*KERNEL_WIDTH+j] <= din[(i*KERNEL_WIDTH+j)*8 +: 8];
+						kernel_piso[i*KERNEL_WIDTH+j] <= kernel[(i*KERNEL_WIDTH+j)*6 +: 6];
+						piso_valid[i*KERNEL_WIDTH+j] <= 1'b1;
 					end
 				end		
 				din_valid <= 1'b0;
@@ -250,7 +250,7 @@ module filter_tb;
             else begin
 				if( (|piso_valid) == 1'b1) begin // serial out	until piso_valid is 0				
 					piso_valid <= {piso_valid, 1'b0};
-					for(i = 1; i < KERNEL_SIZE*KERNEL_SIZE+1; i = i + 1) begin
+					for(i = 1; i < KERNEL_WIDTH*KERNEL_HEIGHT+1; i = i + 1) begin
 						din_piso[i] <= din_piso[i-1];
 						kernel_piso[i] <= kernel_piso[i-1];						
 					end
