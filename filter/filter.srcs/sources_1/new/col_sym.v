@@ -1,21 +1,27 @@
 module col_sym
+#(
+    parameter FILTER_SZ     = 5,
+    parameter DATA_WIDTH    = 8,
+    parameter MAX_WIDTH     = 4096,
+    parameter MAX_HEIGHT    = 4096    
+)
 (
     input clk,
     input resetn,
     input en,
     
-    input [8*5-1:0] din,
+    input [DATA_WIDTH*FILTER_SZ-1:0] din,
     input           din_valid,
     
-    input [11:0]    width,
-    input [11:0]    height,
+    input [$clog2(MAX_WIDTH)-1:0]  width,
+    input [$clog2(MAX_HEIGHT)-1:0] height,
     
-    output reg [8*5-1:0]   dout,
+    output reg [DATA_WIDTH*FILTER_SZ-1:0]   dout,
     output reg             dout_valid
 );
 
-    reg [11:0] row_cnt;
-    reg [11:0] col_cnt;
+    reg [$clog2(MAX_WIDTH)-1:0]  row_cnt;
+    reg [$clog2(MAX_HEIGHT)-1:0] col_cnt;
     
     always@(posedge clk) begin
     
@@ -79,15 +85,15 @@ module col_sym
                 if( din_valid == 1'b1 ) begin
                     
                     // first half
-                    for( i = 0; i < (5-1)/2; i = i + 1 ) begin
+                    for( i = 0; i < (FILTER_SZ-1)/2; i = i + 1 ) begin
                     
-                        if( col_cnt <= height - ((5-1)/2 - i)) begin
+                        if( col_cnt <= height - ((FILTER_SZ-1)/2 - i)) begin
                         
-                            dout[8*i +: 8] <= din[8*i +: 8];
+                            dout[DATA_WIDTH*i +: DATA_WIDTH] <= din[DATA_WIDTH*i +: DATA_WIDTH];
                         end
                         else begin
                                                     
-                            dout[8*i +: 8] <= din[ 8*((5 - i - 1) - (height - col_cnt)*2) +: 8];
+                            dout[DATA_WIDTH*i +: DATA_WIDTH] <= din[ DATA_WIDTH*((FILTER_SZ - i - 1) - (height - col_cnt)*2) +: DATA_WIDTH];
                             
                             // d0 <= d4 cnt == height
                             // d0 <= d2 cnt == height - 1
@@ -97,18 +103,18 @@ module col_sym
                     end            
                     
                     // center
-                    dout[8*((5-1)/2) +: 8]  <= din[8*((5-1)/2) +: 8];
+                    dout[DATA_WIDTH*((FILTER_SZ-1)/2) +: DATA_WIDTH]  <= din[DATA_WIDTH*((FILTER_SZ-1)/2) +: DATA_WIDTH];
                     
                     // last half
-                    for( i = 0; i < (5-1)/2; i = i + 1 ) begin
+                    for( i = 0; i < (FILTER_SZ-1)/2; i = i + 1 ) begin
                     
                         if( col_cnt > i) begin
                         
-                            dout[8*((5-1)/2 + i + 1) +: 8] <= din[8*((5-1)/2 + i + 1) +: 8];
+                            dout[DATA_WIDTH*((FILTER_SZ-1)/2 + i + 1) +: DATA_WIDTH] <= din[DATA_WIDTH*((FILTER_SZ-1)/2 + i + 1) +: DATA_WIDTH];
                         end
                         else begin
                                                     
-                            dout[8*((5-1)/2 + i + 1) +: 8] <= din[8*(((5-1)/2 - i - 1) + col_cnt*2) +: 8];
+                            dout[DATA_WIDTH*((FILTER_SZ-1)/2 + i + 1) +: DATA_WIDTH] <= din[DATA_WIDTH*(((FILTER_SZ-1)/2 - i - 1) + col_cnt*2) +: DATA_WIDTH];
                             
                             // d3 <= d1, cnt == 0
                             
