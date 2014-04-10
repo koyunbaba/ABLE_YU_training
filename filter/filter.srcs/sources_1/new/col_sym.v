@@ -54,69 +54,69 @@ module col_sym
     
     integer i, j;
     
-	/*
-		din[ 8*0 +: 8]
-		din[ 8*1 +: 8]
-		din[ 8*2 +: 8]
-		din[ 8*3 +: 8]
-		din[ 8*4 +: 8]
-	*/
-	
+    /*
+        din[ 8*0 +: 8]
+        din[ 8*1 +: 8]
+        din[ 8*2 +: 8]
+        din[ 8*3 +: 8]
+        din[ 8*4 +: 8]
+    */
+    
     always@(posedge clk) begin
         
         if( resetn == 1'b0 ) begin
         
             dout <= 0;
-			
-			dout_valid <= 1'b0;
+            
+            dout_valid <= 1'b0;
         end
         else begin
         
             if( en == 1'b1 ) begin
-				
-				dout_valid <= din_valid;
-				
-				if( din_valid == 1'b1 ) begin
-					
-					// first half
-					for( i = 0; i < (5-1)/2; i = i + 1 ) begin
-					
-						if( col_cnt <= height - ((5-1)/2 - i)) begin
-						
-							dout[8*i +: 8] <= din[8*i +: 8];
-						end
-						else begin
-													
-							dout[8*i +: 8] <= din[ 8*((5 - i - 1) - (height - col_cnt)*2) +: 8];
-							
-							// d0 <= d4 cnt == height
-							// d0 <= d2 cnt == height - 1
-							
-							// d1 <= d3 cnt == height
-						end
-					end            
-					
-					// center
-					dout[8*((5-1)/2) +: 8]  <= din[8*((5-1)/2) +: 8];
-					
-					// last half
-					for( i = 0; i < (5-1)/2; i = i + 1 ) begin
-					
-						if( col_cnt > i) begin
-						
-							dout[8*((5-1)/2 + i + 1) +: 8] <= din[8*((5-1)/2 + i + 1) +: 8];
-						end
-						else begin
-													
-							dout[8*((5-1)/2 + i + 1) +: 8] <= din[8*(((5-1)/2 - i - 1) + col_cnt*2) +: 8];
-							
-							// d3 <= d1, cnt == 0
-							
-							// d4 <= d0, cnt == 0
-							// d4 <= d2, cnt == 1
-						end
-					end                        
-				end
+                
+                dout_valid <= din_valid;
+                
+                if( din_valid == 1'b1 ) begin
+                    
+                    // first half
+                    for( i = 0; i < (5-1)/2; i = i + 1 ) begin
+                    
+                        if( col_cnt <= height - ((5-1)/2 - i)) begin
+                        
+                            dout[8*i +: 8] <= din[8*i +: 8];
+                        end
+                        else begin
+                                                    
+                            dout[8*i +: 8] <= din[ 8*((5 - i - 1) - (height - col_cnt)*2) +: 8];
+                            
+                            // d0 <= d4 cnt == height
+                            // d0 <= d2 cnt == height - 1
+                            
+                            // d1 <= d3 cnt == height
+                        end
+                    end            
+                    
+                    // center
+                    dout[8*((5-1)/2) +: 8]  <= din[8*((5-1)/2) +: 8];
+                    
+                    // last half
+                    for( i = 0; i < (5-1)/2; i = i + 1 ) begin
+                    
+                        if( col_cnt > i) begin
+                        
+                            dout[8*((5-1)/2 + i + 1) +: 8] <= din[8*((5-1)/2 + i + 1) +: 8];
+                        end
+                        else begin
+                                                    
+                            dout[8*((5-1)/2 + i + 1) +: 8] <= din[8*(((5-1)/2 - i - 1) + col_cnt*2) +: 8];
+                            
+                            // d3 <= d1, cnt == 0
+                            
+                            // d4 <= d0, cnt == 0
+                            // d4 <= d2, cnt == 1
+                        end
+                    end                        
+                end
             end
         end
     end
