@@ -98,6 +98,7 @@ module filter_rowbuffer_switch
 				
 				dout_array[ii] <= 0;				
 			end			
+			dout_valid <= 1'b0;
 		end
 		else begin
 		
@@ -110,7 +111,7 @@ module filter_rowbuffer_switch
 				
 					if(counter_row + ii < KERNEL_SIZE/2) begin		
 						
-						dout_array[ii] <= din_array[ KERNEL_SIZE - 1 - ii - (counter_row*2)];
+						dout_array[ii] <= 0;//din_array[ KERNEL_SIZE - 1 - ii - (counter_row*2)];
 							// ii <=   (KERNEL_SIZE/2 - row) + [ (KERNEL_SIZE/2 - row) - ii ];
 					end					
 					else begin
@@ -127,8 +128,8 @@ module filter_rowbuffer_switch
 				
 					if(counter_row + (ii-KERNEL_SIZE/2) >= d_rows ) begin
 					
-						dout_array[ii] <= din_array[((KERNEL_SIZE-2-(counter_row + KERNEL_SIZE/2 - d_rows))*2 ) - ii];
-							//  ii <=   ( counter_row + KERNEL_SIZE/2 - d_rows)) << 1 ) - [ ( ii - ( KERNEL_SIZE - 2 - ( counter_row + KERNEL_SIZE/2 - d_rows)) ) ] 						
+						dout_array[ii] <= 0;//din_array[((KERNEL_SIZE-2-(counter_row + KERNEL_SIZE/2 - d_rows))*2 ) - ii];
+							//  ii <=   ( KERNEL_SIZE - 2 - ( counter_row + KERNEL_SIZE/2 - d_rows)) - [ ii - ( KERNEL_SIZE - 2 - ( counter_row + KERNEL_SIZE/2 - d_rows))  ] 						
 					end
 					else begin
 						
