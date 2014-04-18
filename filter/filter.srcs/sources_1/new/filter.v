@@ -39,8 +39,8 @@ module filter
 	parameter TOTAL_SIZE = KERNEL_SIZE * KERNEL_SIZE;
 	parameter LAYER_1_SIZE = (KERNEL_SIZE/2+1)*(KERNEL_SIZE/2);
 	parameter LAYER_2_SIZE = LAYER_1_SIZE;	
-	parameter ADDER_TREE_LAYER = $clog2(LAYER_1_SIZE)+1;
-	parameter LATENCY = 6+3+ADDER_TREE_LAYER+1;// layer 1: 3, layer2~  adder tree, the last 1 for output buf
+	parameter ADDER_TREE_LAYER = $clog2(LAYER_1_SIZE);	
+	parameter LATENCY = 6+3+ADDER_TREE_LAYER;// layer 1: 3, layer2~  adder tree, the last 1 for output buf
 	
     wire [8:0] din_array [TOTAL_SIZE-1:0];
     wire [5:0] kernel_array [TOTAL_SIZE-1:0];	
@@ -175,19 +175,19 @@ module filter
 		end
 	end
 	
-	
 	// adder tree
 	parameter ADDER_TREE_DATA_SIZE = (2**ADDER_TREE_LAYER);	
 	reg [31:0] adder_tree_data [ADDER_TREE_DATA_SIZE-1:0];	// array tree structure
-	reg  [31:0] layer_end;		
+	wire  [31:0] layer_end;		
+	assign layer_end = adder_tree_data[1];	
 	assign dout = layer_end;
 	assign dout_valid = layer_valid[LATENCY-1]; 
     
     always@(posedge clk) begin    
         
     	if( resetn == 1'b0 ) begin    
-			layer_valid <= 0;    		
-			layer_end <= 0;
+		
+			layer_valid <= 0;    					
 			
 			for(k = 0; k < ADDER_TREE_DATA_SIZE; k = k + 1) begin
 			
@@ -198,19 +198,21 @@ module filter
 			
 			//adder tree
 			//layer 4
-			adder_tree_data[ADDER_TREE_DATA_SIZE/2] <= {{15{layer_1_3_4[16]}}, layer_1_3_4};
+			adder_tree_data[ADDER_TREE_DATA_SIZE/2] <= {{15{layer_1_3_4[16]}}, layer_1_3_4} + {{15{layer_3_4[1*3+2][16]}}, layer_3_4[1*3+2]};
 			
-			for(k = 1; k < LAYER_1_SIZE; k = k + 1) begin
+			for(k = 1; k < LAYER_1_SIZE/2; k = k + 1) begin
 			
-				adder_tree_data[ADDER_TREE_DATA_SIZE/2+k] <= {{15{layer_3_4[k*3+2][16]}}, layer_3_4[k*3+2]};
+				adder_tree_data[ADDER_TREE_DATA_SIZE/2+k] <= {{15{layer_3_4[(k*2)*3+2][16]}}, layer_3_4[(k*2)*3+2]} + {{15{layer_3_4[(k*2+1)*3+2][16]}}, layer_3_4[(k*2+1)*3+2]};
 			end				
+			
+					
 			
 			//layer 5 ~ ...
 			for(k = 1; k < ADDER_TREE_DATA_SIZE/2; k = k + 1) begin
 			
 				adder_tree_data[k] <= adder_tree_data[k*2]+adder_tree_data[k*2+1];
 			end			
-	   	    layer_end <= adder_tree_data[1];			
+			
 			layer_valid <= {layer_valid, din_valid};
         end
     end	
