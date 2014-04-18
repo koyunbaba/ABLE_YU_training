@@ -20,11 +20,12 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module filter_tb;
-	parameter KERNEL_SIZE = 3;		
-	parameter COLS = 16;
-	parameter ROWS = 11;
+	parameter KERNEL_SIZE = 7;		
+	parameter COLS = 2048;
+	parameter ROWS = 10;
 	parameter M_BYTES_IN = 4;
 	parameter DATA_NUM = 1;
+	parameter MAX_IMAGE_SIZE = $clog2(COLS)+1;
 	//-------------------------------------------------------
 	parameter DATA_IN_SIZE =8;
 	parameter KERNEL_DATA_SIZE = KERNEL_SIZE*KERNEL_SIZE*6;
@@ -34,8 +35,8 @@ module filter_tb;
     reg		resetn;
 	reg		row_neg;
 	reg		col_neg;
-	reg [9:0]	cols;
-	reg [9:0]	rows;
+	reg [MAX_IMAGE_SIZE-1:0]	cols;
+	reg [MAX_IMAGE_SIZE-1:0]	rows;
     //reg	[DATA_IN_SIZE-1:0]	din;		
 	reg signed	[KERNEL_DATA_SIZE-1:0] 	kernel;	    
     wire signed	[32*M_BYTES_IN-1:0]	dout;				
@@ -48,7 +49,7 @@ module filter_tb;
 	wire [5:0] kernel_piso_result;		
 	wire kernel_piso_valid_result;
 
-	filter_wrapper #(.KERNEL_SIZE(KERNEL_SIZE), .M_BYTES_IN(M_BYTES_IN))	filter_wrapper_uut
+	filter_top #(.KERNEL_SIZE(KERNEL_SIZE), .M_BYTES_IN(M_BYTES_IN), .MAX_IMAGE_SIZE(MAX_IMAGE_SIZE))	filter_top_uut
 	(
 		.clk(clk),
 		.resetn(resetn),
@@ -69,13 +70,13 @@ module filter_tb;
     reg [15:0] counter1;
     reg [15:0] counter2;
 	reg [15:0] counter3;
-    reg signed [9:0] counter_col;
-	reg [9:0] counter_row;
+    reg signed [MAX_IMAGE_SIZE+1-1:0] counter_col;
+	reg [MAX_IMAGE_SIZE+1-1:0] counter_row;
 	
 	
-    reg [31:0] fifo[0:1023];
-    reg [9:0]  rd_ptr;
-    reg [9:0]  wr_ptr;
+    reg [31:0] fifo[0:COLS+1];
+    reg [$clog2(COLS+1):0]  rd_ptr;
+    reg [$clog2(COLS+1):0]  wr_ptr;
     
     wire signed [31:0] ans[M_BYTES_IN-1:0];
     reg [31:0] temp [M_BYTES_IN-1:0];    
@@ -190,7 +191,12 @@ module filter_tb;
 							m = i;
 						end			
 						m = COLS - m - 1;
-						sum_temp = { 7'b0, {long_adder[( (k*COLS+m) *8) +: 8]} } * { {9{kernel[(p*KERNEL_SIZE+q )*6+5]}}, kernel[ (p*KERNEL_SIZE+q )*6+:6]}; // signed mul  din * kernel
+						if($signed(j) < 0 || $signed(i) < 0 || j >= ROWS || i >= COLS) begin
+							sum_temp = 0;
+						end
+						else begin
+							sum_temp = { 7'b0, {long_adder[( (k*COLS+m) *8) +: 8]} } * { {9{kernel[(p*KERNEL_SIZE+q )*6+5]}}, kernel[ (p*KERNEL_SIZE+q )*6+:6]}; // signed mul  din * kernel
+						end
 						sum = sum + {{17{sum_temp[14]}}, sum_temp};		
 					end
 					
@@ -211,7 +217,7 @@ module filter_tb;
             // fifo clean and pointer reset
             wr_ptr <= 0;
             rd_ptr <= 0;            
-            for(i = 0; i < 1024; i = i + 1) begin                
+            for(i = 0; i < 4096; i = i + 1) begin                
                 fifo[i] <= 0;                
             end
         end
@@ -333,7 +339,7 @@ module filter_tb;
 						counter2 <= counter2 + 1;
 					end
 					
-					if(counter3 > 35) begin
+					if(counter3 > 305) begin
 						counter3 <= 1;
 						counter2 <= 0;
 					end			
