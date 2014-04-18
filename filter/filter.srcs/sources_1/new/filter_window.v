@@ -37,10 +37,8 @@ module filter_window
 	output [(KERNEL_SIZE+M_BYTES_IN-1)*KERNEL_SIZE*8-1:0] dout,
 	output reg dout_valid
 );
-			
-	//parameter EXTEND_NUM = KERNEL_SIZE/2 >= M_BYTES_IN ? ((KERNEL_SIZE/2)%M_BYTES_IN == 0 ? 0 :M_BYTES_IN - ((KERNEL_SIZE/2)%M_BYTES_IN) ) 
-	//													: (M_BYTES_IN%(KERNEL_SIZE/2)) == 0 ? 0 : M_BYTES_IN - (M_BYTES_IN%(KERNEL_SIZE/2)));	
-	parameter EXTEND_NUM = M_BYTES_IN - ((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN == 0 ? 0 : M_BYTES_IN - ((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN;
+				
+	parameter EXTEND_NUM = ((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN == 0 ? 0 : (M_BYTES_IN - (((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN));
 	parameter WINDOW_FIFO_WIDTH = KERNEL_SIZE+(M_BYTES_IN-1)+EXTEND_NUM;	
 	parameter WINDOW_FIFO_OUT_WIDTH = KERNEL_SIZE+(M_BYTES_IN-1);
 	
@@ -52,7 +50,7 @@ module filter_window
 	
 
 	reg [KERNEL_SIZE/2-1:0] window_fifo_valid_buf;	
-	reg [WINDOW_FIFO_WIDTH-1:0] window_fifo_valid;	
+	reg [WINDOW_FIFO_WIDTH-1:WINDOW_FIFO_WIDTH-1-EXTEND_NUM+1] window_fifo_valid;	
 	always@(posedge clk) begin
 	
 		if(resetn == 1'b0) begin
@@ -77,6 +75,12 @@ module filter_window
 				
 					window_fifo_valid_buf[ij] <= window_fifo_valid_buf[ij+M_BYTES_IN];					
 				end		
+				
+				//back extend remained
+				for(ij = 0; ij < EXTEND_NUM; ij = ij + 1) begin       
+					
+					window_fifo_valid[WINDOW_FIFO_WIDTH-1-ij] <= din_valid;
+				end
 			end
 		end
 	end
@@ -140,7 +144,7 @@ module filter_window
 			
 				dout_valid_buf <= din_valid;
 				
-				if(M_BYTES_IN >= KERNEL_SIZE/2) begin			
+				if(M_BYTES_IN > EXTEND_NUM + KERNEL_SIZE/2) begin			
 										
 					dout_valid <= dout_valid_buf;	
 				end
@@ -156,20 +160,19 @@ module filter_window
 		end
 	end
 	
-	wire signed [(MAX_IMAGE_SIZE+1)-1:0] right_mirror_condition = KERNEL_SIZE/2 > M_BYTES_IN ? d_cols - ((KERNEL_SIZE/2)/M_BYTES_IN)*M_BYTES_IN : d_cols - 1 + 1;		
-	
+	wire signed [(MAX_IMAGE_SIZE+1)-1:0] right_mirror_condition = KERNEL_SIZE/2 > M_BYTES_IN ? d_cols - ((KERNEL_SIZE/2)/M_BYTES_IN)*M_BYTES_IN : d_cols - 1 + 1;			
 	generate 
 		
 		for(gi = 0; gi < KERNEL_SIZE; gi = gi + 1) 
 		begin: Col_mirror
 		
 			filter_window_col_mirror #(.KERNEL_SIZE(KERNEL_SIZE), .MAX_IMAGE_SIZE(MAX_IMAGE_SIZE), .M_BYTES_IN(M_BYTES_IN))
-			filter_window_col_mirro_uut
+			filter_window_col_mirro_i
 			(
 				.clk(clk),
 				.resetn(resetn),
 				.d_cols(d_cols),				
-				.counter_col(counter_col),
+				.counter_col(counter_col),				
 				.right_mirror_condition(right_mirror_condition),
 				.din(din[gi*M_BYTES_IN*8 +: M_BYTES_IN*8]),				
 				.en(en),
