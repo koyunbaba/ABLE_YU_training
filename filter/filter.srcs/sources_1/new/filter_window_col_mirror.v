@@ -30,17 +30,14 @@ module filter_window_col_mirror
 	input clk,
 	input resetn,
 	input [MAX_IMAGE_SIZE-1:0] d_cols,    
-	input [MAX_IMAGE_SIZE+1-1:0] counter_col,   
+	input [MAX_IMAGE_SIZE+1-1:0] counter_col,   	
 	input signed [(MAX_IMAGE_SIZE+1)-1:0] right_mirror_condition,
 	input [M_BYTES_IN*8-1:0] din,	
 	input en,
 	output [(KERNEL_SIZE+M_BYTES_IN-1)*8-1:0] dout
 );
-
-	//parameter EXTEND_NUM = KERNEL_SIZE/2 > M_BYTES_IN ? (KERNEL_SIZE/2)%M_BYTES_IN : M_BYTES_IN - KERNEL_SIZE/2;	
-	//parameter EXTEND_NUM = KERNEL_SIZE/2 >= M_BYTES_IN ? ((KERNEL_SIZE/2)%M_BYTES_IN == 0 ? 0 :M_BYTES_IN - ((KERNEL_SIZE/2)%M_BYTES_IN) ) 
-	//													: (M_BYTES_IN%(KERNEL_SIZE/2)) == 0 ? 0 : M_BYTES_IN - (M_BYTES_IN%(KERNEL_SIZE/2));	
-	parameter EXTEND_NUM = M_BYTES_IN - ((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN == 0 ? 0 : M_BYTES_IN - ((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN;
+	
+	parameter EXTEND_NUM = ((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN == 0 ? 0 : (M_BYTES_IN - (((KERNEL_SIZE + M_BYTES_IN - 1) - KERNEL_SIZE/2) % M_BYTES_IN));
 	parameter WINDOW_FIFO_WIDTH = KERNEL_SIZE+(M_BYTES_IN-1)+EXTEND_NUM;
 	parameter WINDOW_FIFO_OUT_WIDTH = KERNEL_SIZE+(M_BYTES_IN-1);
 
@@ -93,91 +90,101 @@ module filter_window_col_mirror
 				for(ij = 0; ij < EXTEND_NUM && ij <= ((WINDOW_FIFO_WIDTH-M_BYTES_IN)-(M_BYTES_IN-1+KERNEL_SIZE/2+1)); ij = ij + 1) begin
 				
 					window_fifo_buf[(WINDOW_FIFO_WIDTH-1-M_BYTES_IN)-(M_BYTES_IN-1+KERNEL_SIZE/2+1)-ij] <= window_fifo[WINDOW_FIFO_WIDTH-1-ij];
-				end
+				end				
 				
 				for(ij = 0; ij < KERNEL_SIZE/2-M_BYTES_IN; ij = ij + 1) begin
 				
 					window_fifo_buf[ij] <= window_fifo_buf[ij+M_BYTES_IN];					
 				end						
 				
-				//left mirror
-				if(counter_col == M_BYTES_IN) begin
 				
-					//back
-					for(ij = 0; ij < M_BYTES_IN; ij = ij + 1) begin
+				//back extend remained
+				for(ij = 0; ij < EXTEND_NUM; ij = ij + 1) begin       
 					
-						window_fifo[WINDOW_FIFO_WIDTH - M_BYTES_IN + ij] <= din_array[ij];
-					end
+					window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= din_array[M_BYTES_IN-1-ij];
+				end			
+				
+				//back mirror
+				for(ij = EXTEND_NUM; ij < EXTEND_NUM + KERNEL_SIZE/2; ij = ij + 1) begin            
 					
-					//front mirror
-					if(EXTEND_NUM == 0) begin
+					if(counter_col >= right_mirror_condition) begin					
 					
-						window_fifo[0] <= din_array[0];
+						if(EXTEND_NUM == 0 || ((M_BYTES_IN % EXTEND_NUM) == KERNEL_SIZE/2) ) begin //TODO
+						
+							window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= 0;
+						end
+						else begin
+							if( ij <= M_BYTES_IN + counter_col - right_mirror_condition ) begin
+							
+								window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= 0;//window_fifo[WINDOW_FIFO_WIDTH - M_BYTES_IN - 1 + ij - ((counter_col - right_mirror_condition)*2 )];
+																//(WINDOW_FIFO_WIDTH-1-(counter_col - right_mirror_condition)) - [ (WINDOW_FIFO_WIDTH-1-ij) - (WINDOW_FIFO_WIDTH-1-M_BYTES_IN-(counter_col - right_mirror_condition))] 							
+							end
+							else begin
+							
+								window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo[WINDOW_FIFO_WIDTH-1-ij+M_BYTES_IN];
+							end
+						end
 					end
 					else begin
 					
-						window_fifo[0] <= window_fifo[WINDOW_FIFO_WIDTH-EXTEND_NUM];
-					end
-					
-					//buf pipeline and buf mirror
-					for(ij = 0; ij < KERNEL_SIZE/2; ij = ij + 1) begin
-					
-						window_fifo[1 + KERNEL_SIZE/2-1 + ij ] <= window_fifo_buf[ij];
-					end
-					
-					for(ij = 1; ij < KERNEL_SIZE/2; ij = ij + 1) begin
-					
-						window_fifo[1 + KERNEL_SIZE/2-1 - ij] <= window_fifo_buf[ij];
-					end
-					
-					//residual remained
-					for(ij = KERNEL_SIZE - 1; ij < WINDOW_FIFO_WIDTH-M_BYTES_IN; ij = ij + 1) begin
-					
-						window_fifo[ij] <= window_fifo[ij+M_BYTES_IN];
-					end
-
-				end
-				// right mirror
-				else if(counter_col >= right_mirror_condition) begin
-				
-					//back extend remained
-					for(ij = 0; ij < EXTEND_NUM; ij = ij + 1) begin       
-					
-						window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= din_array[M_BYTES_IN-1-ij];
-					end						
-					
-					//back mirror
-					for(ij = EXTEND_NUM; ij < EXTEND_NUM + KERNEL_SIZE/2; ij = ij + 1) begin            
+						if(ij < M_BYTES_IN) begin
 						
-						if( ij <= M_BYTES_IN + counter_col - right_mirror_condition ) begin
-							window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo[WINDOW_FIFO_WIDTH - M_BYTES_IN - 1 + ij - ((counter_col - right_mirror_condition)*2 )];
-															//(WINDOW_FIFO_WIDTH-1-(counter_col - right_mirror_condition)) - [ (WINDOW_FIFO_WIDTH-1-ij) - (WINDOW_FIFO_WIDTH-1-M_BYTES_IN-(counter_col - right_mirror_condition))] 							
+							window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= din_array[M_BYTES_IN-1-ij];
 						end
 						else begin
+						
 							window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo[WINDOW_FIFO_WIDTH-1-ij+M_BYTES_IN];
 						end
 					end
-					
-					//front remain
-					for(ij = 0; ij < WINDOW_FIFO_WIDTH-EXTEND_NUM-KERNEL_SIZE/2; ij = ij + 1) begin 
-					
-						window_fifo[ij] <= window_fifo[ij+M_BYTES_IN];
-					end	
-					
 				end
 				
-				else begin
+				//middle remain
+				for(ij = EXTEND_NUM + KERNEL_SIZE/2; ij < WINDOW_FIFO_WIDTH-(KERNEL_SIZE-1); ij = ij + 1) begin
+				
+					window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo[WINDOW_FIFO_WIDTH-1-ij+M_BYTES_IN];
+				end
+				
+				//left mirror
+				for(ij = WINDOW_FIFO_WIDTH-(KERNEL_SIZE-1); ij < WINDOW_FIFO_WIDTH-(KERNEL_SIZE-1)+KERNEL_SIZE/2; ij = ij + 1) begin
 					
-					for(ij = 0; ij < M_BYTES_IN; ij = ij + 1)  begin
-					
-						window_fifo[WINDOW_FIFO_WIDTH-1 - ij] <= din_array[M_BYTES_IN-1-ij];
+					if(counter_col == M_BYTES_IN) begin
+						//window_fifo[KERNEL_SIZE/2 + ij + ] <= window_fifo_buf[KERNEL_SIZE/2-ij];
+						window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo_buf[(WINDOW_FIFO_WIDTH-1-ij+M_BYTES_IN)-(M_BYTES_IN+KERNEL_SIZE/2)];//window_fifo_buf[KERNEL_SIZE/2 - (ij-(WINDOW_FIFO_WIDTH-(KERNEL_SIZE-2)))];
 					end
+					else begin
 					
-					for(ij = 0; ij < WINDOW_FIFO_WIDTH - M_BYTES_IN; ij = ij + 1) begin
+						window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo[WINDOW_FIFO_WIDTH-1-ij+M_BYTES_IN];
+					end
+				end
+				
+				for(ij = WINDOW_FIFO_WIDTH-KERNEL_SIZE/2; ij < WINDOW_FIFO_WIDTH-1; ij = ij + 1) begin
 					
-						window_fifo[ij] <= window_fifo[ij+M_BYTES_IN];
-					end									
-				end						
+					if(counter_col == M_BYTES_IN) begin
+					
+						window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= 0;//window_fifo_buf[KERNEL_SIZE/2 - (ij-(WINDOW_FIFO_WIDTH-(KERNEL_SIZE-2)))];
+					end
+					else begin
+					
+						window_fifo[WINDOW_FIFO_WIDTH-1-ij] <= window_fifo[WINDOW_FIFO_WIDTH-1-ij+M_BYTES_IN];
+					end
+				end
+				
+				if(counter_col == M_BYTES_IN ) begin
+				
+					//front mirror
+					if(EXTEND_NUM == 0) begin
+					
+						window_fifo[0] <= 0;//din_array[0];
+					end
+					else begin
+					
+						window_fifo[0] <= 0;//window_fifo[WINDOW_FIFO_WIDTH-EXTEND_NUM];
+					end
+				end
+				else begin
+				
+					window_fifo[0] <= window_fifo[M_BYTES_IN];
+				end
 			end
 		end		
 	end
